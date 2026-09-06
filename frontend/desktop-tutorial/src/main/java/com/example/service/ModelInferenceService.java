@@ -45,7 +45,7 @@ public class ModelInferenceService {
         }
         try {
             List<String> labels = Files.readAllLines(labelsPath).stream()
-                    .map(String::trim)
+                    .map(value -> value.trim())
                     .filter(label -> !label.isEmpty())
                     .toList();
             return labels.toArray(String[]::new);

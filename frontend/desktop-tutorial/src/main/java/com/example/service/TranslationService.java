@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.Objects;
 
 /**
  * Template-based translation service for Bengali (বাংলা) and Hindi (हिंदी).
@@ -29,7 +30,7 @@ public class TranslationService {
         requestFactory.setConnectTimeout(3000);
         requestFactory.setReadTimeout(5000);
         this.translationClient = restClientBuilder
-                .baseUrl(translationApiUrl)
+                .baseUrl(Objects.requireNonNull(translationApiUrl))
                 .requestFactory(requestFactory)
                 .build();
         this.objectMapper = objectMapper;
@@ -457,31 +458,6 @@ public class TranslationService {
         } catch (Exception ignored) {
             return null;
         }
-    }
-
-    /**
-     * Best-effort translation of an action step sentence.
-     * For the hackathon we translate known fragments and prepend a language marker.
-     */
-    private String translateActionStep(String action, String lang) {
-        // Try to translate known sub-phrases
-        String result = action;
-        for (Map.Entry<String, Map<String, String>> entry : PHRASES.entrySet()) {
-            String en = entry.getKey();
-            String localized = entry.getValue().getOrDefault(lang, en);
-            if (!en.equals(localized) && result.contains(en)) {
-                result = result.replace(en, localized);
-            }
-        }
-        // If nothing changed, prefix with a language note
-        if (result.equals(action)) {
-            if ("bn".equals(lang)) {
-                return "🌾 " + action; // Keep English but mark it
-            } else if ("hi".equals(lang)) {
-                return "🌾 " + action;
-            }
-        }
-        return result;
     }
 
     /**

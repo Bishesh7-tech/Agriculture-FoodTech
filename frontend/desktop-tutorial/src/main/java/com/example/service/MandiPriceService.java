@@ -8,8 +8,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
 import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -117,7 +115,6 @@ public class MandiPriceService {
 
     // ── data.gov.in API call ──────────────────────────────────────────────
 
-    @SuppressWarnings("unchecked")
     private List<MandiPriceDTO> fetchFromApi(String commodity, String cropName) {
         Map<?, ?> response = restClient.get()
                 .uri(baseUrl + "?api-key={key}&format=json&limit=10"

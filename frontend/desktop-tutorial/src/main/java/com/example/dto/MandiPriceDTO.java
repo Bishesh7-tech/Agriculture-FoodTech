@@ -1,7 +1,5 @@
 package com.example.dto;
 
-import java.util.List;
-
 /**
  * Market price data for a single commodity at a specific mandi (market).
  * Populated from the data.gov.in Open Government Data API or built-in fallback.

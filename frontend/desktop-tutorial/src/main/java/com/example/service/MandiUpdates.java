@@ -8,6 +8,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Reads live mandi price records from official public APIs when configured.
@@ -24,7 +25,7 @@ public class MandiUpdates {
             @Value("${mandi.api-key:}") String apiKey,
             @Value("${mandi.resource-id:}") String resourceId,
             @Value("${mandi.base-url:https://api.data.gov.in}") String baseUrl) {
-        this.restClient = builder.baseUrl(baseUrl).build();
+        this.restClient = builder.baseUrl(Objects.requireNonNull(baseUrl)).build();
         this.apiKey = apiKey;
         this.resourceId = resourceId;
     }

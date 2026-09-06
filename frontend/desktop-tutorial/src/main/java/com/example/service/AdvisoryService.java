@@ -7,7 +7,6 @@ import com.example.service.WBCropKnowledgeBase.DiseaseAdvisory;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * West Bengal advisory engine. Produces explainable, location-aware,
@@ -72,7 +71,7 @@ public class AdvisoryService {
 
         Map.Entry<String, Double> top = sorted.get(0);
         double cropProbabilityTotal = cropPredictions.stream()
-            .mapToDouble(Map.Entry::getValue)
+            .mapToDouble(entry -> entry.getValue())
             .sum();
         double confidence = cropProbabilityTotal > 0
             ? top.getValue() / cropProbabilityTotal
