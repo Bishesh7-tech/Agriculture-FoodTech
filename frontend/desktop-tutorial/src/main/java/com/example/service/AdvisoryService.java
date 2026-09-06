@@ -2,7 +2,6 @@ package com.example.service;
 
 import com.example.dto.DiagnosisDetailDTO;
 import com.example.dto.PredictionResponseDTO;
-import com.example.dto.SecondOpinionDTO;
 import com.example.dto.TranslatedAdvisoryDTO;
 import com.example.service.WBCropKnowledgeBase.DiseaseAdvisory;
 import org.springframework.stereotype.Service;
@@ -42,8 +41,7 @@ public class AdvisoryService {
             String district,
             String observations,
             String weatherContext,
-            String language,
-            PlantIdService.PlantIdOpinion plantIdOpinion) {
+            String language) {
 
         if (predictions == null || predictions.isEmpty()) {
             throw new IllegalArgumentException("No predictions available");
@@ -60,7 +58,7 @@ public class AdvisoryService {
             .orElseThrow();
         if (cropType == null || cropType.isBlank()
                 || cropPredictions.isEmpty()) {
-            return imageNotMatchedResponse(lang, cropType, overallTop.getValue(), plantIdOpinion);
+            return imageNotMatchedResponse(lang, cropType, overallTop.getValue());
         }
 
         // The farmer's crop selection is useful evidence. Prefer its best matching
@@ -87,17 +85,6 @@ public class AdvisoryService {
 
         // ── Fetch disease advisory from knowledge base ──────────────
         DiseaseAdvisory advisory = knowledgeBase.getDiseaseAdvisory(primaryClass);
-        boolean agreesWithLocal = plantIdOpinion != null
-            && agreesWithLocal(primaryClass, advisory, plantIdOpinion.diagnosis());
-        if (plantIdOpinion != null) {
-            confidence = agreesWithLocal
-                ? Math.min(0.99, confidence * 0.80 + plantIdOpinion.confidence() * 0.20 + 0.05)
-                : confidence * 0.85;
-        }
-        SecondOpinionDTO secondOpinion = plantIdOpinion == null
-            ? new SecondOpinionDTO("Plant.id", false, null, 0.0, false)
-            : new SecondOpinionDTO("Plant.id", true, plantIdOpinion.diagnosis(),
-                plantIdOpinion.confidence(), agreesWithLocal);
 
         // ── Build candidate list ────────────────────────────────────
         List<DiagnosisDetailDTO> candidates = new ArrayList<>();
@@ -165,8 +152,7 @@ public class AdvisoryService {
                 shouldEscalate,
                 escalationInfo,
                 translated,
-                districtContext,
-                secondOpinion);
+                districtContext);
     }
 
             private boolean matchesCrop(String label, String cropType) {
@@ -179,8 +165,7 @@ public class AdvisoryService {
                 || (normalizedCrop.equals("chilli") && normalizedLabel.contains("pepper"));
             }
 
-            private PredictionResponseDTO imageNotMatchedResponse(String language, String cropType, double confidence,
-                                                                  PlantIdService.PlantIdOpinion plantIdOpinion) {
+            private PredictionResponseDTO imageNotMatchedResponse(String language, String cropType, double confidence) {
             String crop = cropType == null || cropType.isBlank() ? "selected crop" : cropType;
             String explanation = "This image could not be matched confidently to " + crop
                 + ". No disease treatment has been suggested. Take a close, well-lit photo of one leaf from the selected crop, then try again.";
@@ -210,28 +195,8 @@ public class AdvisoryService {
                     null,
                     null,
                     List.of()),
-                null,
-                plantIdOpinion == null
-                        ? new SecondOpinionDTO("Plant.id", false, null, 0.0, false)
-                        : new SecondOpinionDTO("Plant.id", true, plantIdOpinion.diagnosis(), plantIdOpinion.confidence(), false));
+                null);
             }
-
-    private boolean agreesWithLocal(String localLabel, DiseaseAdvisory advisory, String externalLabel) {
-        Set<String> localTokens = diagnosisTokens(localLabel);
-        if (advisory != null) localTokens.addAll(diagnosisTokens(advisory.diseaseName()));
-        Set<String> externalTokens = diagnosisTokens(externalLabel);
-        long overlap = externalTokens.stream().filter(localTokens::contains).count();
-        return overlap >= Math.min(2, externalTokens.size());
-    }
-
-    private Set<String> diagnosisTokens(String value) {
-        return Arrays.stream(value.toLowerCase(Locale.ROOT)
-                        .replaceAll("[^a-z0-9 ]", " ")
-                        .split("\\s+"))
-                .filter(token -> token.length() > 3)
-                .filter(token -> !Set.of("leaf", "plant", "disease", "healthy", "virus").contains(token))
-                .collect(Collectors.toSet());
-    }
 
     // ── Private helpers ─────────────────────────────────────────────────
 

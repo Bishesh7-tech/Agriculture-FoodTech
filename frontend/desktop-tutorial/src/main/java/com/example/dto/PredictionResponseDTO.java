@@ -34,7 +34,5 @@ public record PredictionResponseDTO(
         /* Full advisory translated into the requested language */
         TranslatedAdvisoryDTO translatedAdvisory,
         /* District-specific context (soil, common issues, season) */
-        String districtContext,
-        /* Optional server-side Plant.id second opinion */
-        SecondOpinionDTO secondOpinion) {
+        String districtContext) {
 }

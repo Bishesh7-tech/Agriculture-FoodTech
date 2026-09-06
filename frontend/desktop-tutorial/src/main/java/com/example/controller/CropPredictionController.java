@@ -12,7 +12,6 @@ import com.example.service.HarvestTimeService;
 import com.example.service.MandiPriceService;
 import com.example.service.MandiUpdates;
 import com.example.service.ModelInferenceService;
-import com.example.service.PlantIdService;
 import com.example.service.SpeechService;
 import com.example.service.TranslationService;
 import com.example.service.WBCropKnowledgeBase;
@@ -42,7 +41,6 @@ public class CropPredictionController {
     private final MandiUpdates mandiUpdates;
     private final HarvestTimeService harvestTimeService;
     private final MandiPriceService mandiPriceService;
-    private final PlantIdService plantIdService;
 
     public CropPredictionController(ModelInferenceService modelInferenceService,
                                     AdvisoryService advisoryService,
@@ -53,8 +51,7 @@ public class CropPredictionController {
                                     SpeechService speechService,
                                     MandiUpdates mandiUpdates,
                                     HarvestTimeService harvestTimeService,
-                                    MandiPriceService mandiPriceService,
-                                    PlantIdService plantIdService) {
+                                    MandiPriceService mandiPriceService) {
         this.modelInferenceService = modelInferenceService;
         this.advisoryService = advisoryService;
         this.weatherService = weatherService;
@@ -65,7 +62,6 @@ public class CropPredictionController {
         this.mandiUpdates = mandiUpdates;
         this.harvestTimeService = harvestTimeService;
         this.mandiPriceService = mandiPriceService;
-        this.plantIdService = plantIdService;
     }
 
     /**
@@ -85,7 +81,6 @@ public class CropPredictionController {
 
         // 1. Run model inference
         Map<String, Double> predictions = modelInferenceService.predict(image);
-        PlantIdService.PlantIdOpinion plantIdOpinion = plantIdService.assess(image).orElse(null);
 
         // 2. Resolve district from GPS if not specified
         Double lat = parseDouble(latitude);
@@ -102,7 +97,7 @@ public class CropPredictionController {
         PredictionResponseDTO response = advisoryService.buildAdvisory(
                 predictions, cropType, cropStage, district,
                 observations, weather,
-                language != null ? language : "en", plantIdOpinion);
+                language != null ? language : "en");
 
         // 5. Log prediction
         try {
