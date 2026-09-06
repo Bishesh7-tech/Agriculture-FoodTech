@@ -36,7 +36,6 @@ const cropSchemes = {
 export default function ToolsPage() {
   const { language } = useLanguage();
   const text = copy[language] || copy.en;
-  const schemesForCrop = cropSchemes[schemeCrop] || text.schemesList;
   const [history, setHistory] = useState(() => {
     try { return JSON.parse(localStorage.getItem('fasal-sathi-pest-history') || '[]'); } catch { return []; }
   });
@@ -48,6 +47,7 @@ export default function ToolsPage() {
   const [schemeCrop, setSchemeCrop] = useState('');
   const [profitInputs, setProfitInputs] = useState({ land: '2', crop: 'Tomato', seed: '4000', fertilizer: '7000', labour: '12000', production: '80', price: '2400' });
   const [profitMarket, setProfitMarket] = useState(null);
+  const schemesForCrop = cropSchemes[schemeCrop] || text.schemesList;
 
   useEffect(() => {
     let active = true;
