@@ -21,6 +21,8 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Train the crop disease classifier")
     parser.add_argument("--plantvillage-dir", type=Path, default=Path("data/PlantVillage"))
     parser.add_argument("--plantdoc-dir", type=Path, default=Path("data/PlantDoc-Dataset-master"))
+    parser.add_argument("--field-dir", type=Path, default=None,
+                        help="Optional field-photo directory with one folder per canonical class")
     parser.add_argument("--output-dir", type=Path, default=Path("models"))
     parser.add_argument("--epochs", type=int, default=15)
     parser.add_argument("--batch-size", type=int, default=32)
@@ -29,8 +31,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--learning-rate", type=float, default=1e-4)
     parser.add_argument("--plantvillage-test-ratio", type=float, default=0.2)
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--unfreeze-from", choices=["none", "layer4", "all"], default="layer4",
-                        help="How much of ResNet18 to fine-tune beyond the classification head")
+    parser.add_argument("--backbone", choices=["resnet18", "resnet50"], default="resnet18")
+    parser.add_argument("--unfreeze-from", choices=["none", "layer4", "all"], default="all",
+                        help="How much of the backbone to fine-tune beyond the classification head")
     return parser.parse_args()
 
 
@@ -79,7 +82,28 @@ def collect_samples(root: Path, limit: int) -> list[tuple[Path, str]]:
 
 def canonicalize_label(label: str) -> str:
     """Merge naming variants from PlantVillage and PlantDoc into one class."""
-    normalized = " ".join(label.lower().replace("_", " ").split())
+    normalized = " ".join(label.lower().replace("_", " ").replace("-", " ").split())
+    normalized = normalized.replace("bell pepper", "pepper")
+    if normalized in {"apple leaf", "apple healthy leaf"}:
+        return "Apple_healthy"
+    if "apple" in normalized and "scab" in normalized:
+        return "Apple_Scab"
+    if "apple" in normalized and "rust" in normalized:
+        return "Apple_rust"
+    if "blueberry" in normalized:
+        return "Blueberry_healthy"
+    if "cherry" in normalized:
+        return "Cherry_healthy"
+    if "peach" in normalized:
+        return "Peach_healthy"
+    if "raspberry" in normalized:
+        return "Raspberry_healthy"
+    if "soyabean" in normalized or "soybean" in normalized:
+        return "Soybean_healthy"
+    if "strawberry" in normalized:
+        return "Strawberry_healthy"
+    if "squash" in normalized and "powdery mildew" in normalized:
+        return "Squash_Powdery_mildew"
     if "tomato" in normalized:
         if "early blight" in normalized:
             return "Tomato_Early_blight"
@@ -109,7 +133,7 @@ def canonicalize_label(label: str) -> str:
         if "healthy" in normalized:
             return "Potato___healthy"
     if "pepper" in normalized or "bell pepper" in normalized:
-        if "bacterial spot" in normalized:
+        if "bacterial spot" in normalized or "leaf spot" in normalized:
             return "Pepper__bell___Bacterial_spot"
         if "healthy" in normalized or normalized == "bell pepper leaf":
             return "Pepper__bell___healthy"
@@ -158,17 +182,23 @@ def build_datasets(args: argparse.Namespace):
     village = collect_samples(find_plantvillage_root(args.plantvillage_dir), args.max_images_per_class)
     doc_train = collect_samples(args.plantdoc_dir / "train", args.max_images_per_class)
     doc_test = collect_samples(args.plantdoc_dir / "test", args.max_images_per_class)
-    classes = sorted({label for _, label in village + doc_train + doc_test})
+    field = collect_samples(args.field_dir, args.max_images_per_class) if args.field_dir else []
+    classes = sorted({label for _, label in village + doc_train + doc_test + field})
     if len(classes) < 2:
         raise ValueError("At least two class folders are required")
     indices = {label: index for index, label in enumerate(classes)}
     village_train, village_test = split_by_class(village, args.plantvillage_test_ratio, args.seed)
-    train = ConcatDataset([LabelledImages(village_train, indices, image_transform(True)),
-                           LabelledImages(doc_train, indices, image_transform(True))])
+    train_sets = [LabelledImages(village_train, indices, image_transform(True)),
+                  LabelledImages(doc_train, indices, image_transform(True))]
+    if field:
+        train_sets.append(LabelledImages(field, indices, image_transform(True)))
+    train = ConcatDataset(train_sets)
     test = ConcatDataset([LabelledImages(village_test, indices, image_transform(False)),
                           LabelledImages(doc_test, indices, image_transform(False))])
     train_targets = [target for _, target in LabelledImages(village_train, indices, image_transform(False)).samples]
     train_targets.extend(target for _, target in LabelledImages(doc_train, indices, image_transform(False)).samples)
+    if field:
+        train_targets.extend(target for _, target in LabelledImages(field, indices, image_transform(False)).samples)
     return classes, train, test, train_targets
 
 
@@ -211,7 +241,10 @@ def main() -> None:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     train_loader = DataLoader(train_data, batch_size=args.batch_size, shuffle=True, num_workers=0)
     test_loader = DataLoader(test_data, batch_size=args.batch_size, num_workers=0)
-    model = models.resnet18(weights=ResNet18_Weights.DEFAULT)
+    if args.backbone == "resnet50":
+        model = models.resnet50(weights=models.ResNet50_Weights.DEFAULT)
+    else:
+        model = models.resnet18(weights=ResNet18_Weights.DEFAULT)
     for parameter in model.parameters():
         parameter.requires_grad = False
     model.fc = nn.Linear(model.fc.in_features, len(classes))
@@ -234,7 +267,13 @@ def main() -> None:
     )
     optimizer = torch.optim.AdamW((parameter for parameter in model.parameters() if parameter.requires_grad), lr=args.learning_rate)
     loss_function = nn.CrossEntropyLoss(weight=class_weights)
-    metrics = {"classes": classes, "epochs": [], "unfreezeFrom": args.unfreeze_from}
+    metrics = {
+        "classes": classes,
+        "epochs": [],
+        "backbone": args.backbone,
+        "unfreezeFrom": args.unfreeze_from,
+        "fieldImages": len(field) if args.field_dir else 0,
+    }
     for epoch in range(args.epochs):
         loss = train_epoch(model, train_loader, device, optimizer, loss_function)
         accuracy, _, _ = evaluate(model, test_loader, device)
