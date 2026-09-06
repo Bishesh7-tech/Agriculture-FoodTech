@@ -7,10 +7,29 @@
 @layer base {
   html {
     scroll-behavior: smooth;
+    background: #08130f;
   }
 
   body {
-    @apply bg-gray-50 font-sans text-gray-800;
+    @apply bg-slate-950 text-slate-100;
+    font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+    background-image:
+      radial-gradient(circle at 12% 0%, rgba(73, 193, 130, 0.12), transparent 30rem),
+      radial-gradient(circle at 88% 12%, rgba(247, 190, 76, 0.08), transparent 24rem),
+      linear-gradient(135deg, #08130f 0%, #0b1d16 48%, #10251c 100%);
+    background-attachment: fixed;
+  }
+}
+
+@layer utilities {
+  .page-enter {
+    animation: page-enter 500ms ease-out both;
+  }
+
+  .soft-grid {
+    background-image: linear-gradient(rgba(139, 214, 169, 0.045) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(139, 214, 169, 0.045) 1px, transparent 1px);
+    background-size: 32px 32px;
   }
 }
 
@@ -67,6 +86,11 @@
   }
 }
 
+@keyframes page-enter {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 .gauge-circle {
   animation: gauge-fill 1.2s ease-out forwards;
 }
@@ -77,8 +101,7 @@
   @apply border-emerald-500 bg-emerald-50;
 }
 
-/* The product is intentionally dark-only. These shared overrides keep the
-   existing page components readable without requiring a theme toggle. */
+/* Shared dark field palette for the existing Tailwind components. */
 html {
   color-scheme: dark;
   background: #08130f;
@@ -128,3 +151,16 @@ body {
 .bg-sky-50 .text-slate-900, .bg-emerald-50 .text-slate-900 { color: #e6f2ec !important; }
 .bg-slate-50 .text-slate-900, .bg-slate-50 .text-slate-500 { color: #d0e1d7 !important; }
 .shadow-sm, .shadow-md, .shadow-lg { --tw-shadow-color: #0008; }
+
+.rounded-2xl {
+  border-radius: 1rem;
+}
+
+button, a, input, select, textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 3px solid rgba(163, 230, 53, 0.7);
+  outline-offset: 3px;
+}

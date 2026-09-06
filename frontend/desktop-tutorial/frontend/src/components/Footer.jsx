@@ -8,7 +8,7 @@ export default function Footer() {
   const text = { en: { desc: 'AI-powered crop disease advisor for West Bengal farmers', nav: 'Navigation', dashboard: 'Dashboard', diagnosis: 'Crop Diagnosis', about: 'About', profile: 'Farmer Profile', resources: 'Resources', support: 'Support', setup: 'Setup Guide', faq: 'FAQ', help: 'Help Center', contact: 'Contact Us', tech: 'Using React, Spring Boot, TorchScript ML Models' }, bn: { desc: 'পশ্চিমবঙ্গের কৃষকদের জন্য এআই ফসল রোগ পরামর্শ', nav: 'নেভিগেশন', dashboard: 'ড্যাশবোর্ড', diagnosis: 'ফসল রোগ নির্ণয়', about: 'সম্পর্কে', profile: 'কৃষক প্রোফাইল', resources: 'সহায়ক তথ্য', support: 'সহায়তা', setup: 'সেটআপ নির্দেশিকা', faq: 'প্রশ্নোত্তর', help: 'সহায়তা কেন্দ্র', contact: 'যোগাযোগ', tech: 'React, Spring Boot ও TorchScript ML Model ব্যবহার করছে' }, hi: { desc: 'पश्चिम बंगाल के किसानों के लिए AI फसल रोग सलाहकार', nav: 'नेविगेशन', dashboard: 'डैशबोर्ड', diagnosis: 'फसल जाँच', about: 'जानकारी', profile: 'किसान प्रोफ़ाइल', resources: 'संसाधन', support: 'सहायता', setup: 'सेटअप गाइड', faq: 'सामान्य प्रश्न', help: 'सहायता केंद्र', contact: 'संपर्क करें', tech: 'React, Spring Boot और TorchScript ML Models का उपयोग' } }[useLanguage().language];
 
   return (
-    <footer className="bg-gradient-to-r from-slate-900 to-slate-800 text-white py-12 mt-16">
+    <footer className="mt-16 border-t border-emerald-200/10 bg-[#07120e]/90 py-14 text-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
           {/* Brand */}
@@ -36,8 +36,8 @@ export default function Footer() {
           <div>
             <h4 className="font-semibold text-sm mb-3 text-slate-200">{text.resources}</h4>
             <ul className="space-y-2">
-              <li><a href="https://github.com/mujahidislamm/Agriculture-FoodTech/blob/main/SETUP_GUIDE.md" target="_blank" rel="noreferrer" className="text-sm text-slate-400 hover:text-white transition-colors">{text.setup}</a></li>
-              <li><a href="https://github.com/mujahidislamm/Agriculture-FoodTech" className="text-sm text-slate-400 hover:text-white transition-colors">GitHub Repository</a></li>
+              <li><a href="https://github.com/sd967967-ship-it/Agriculture-FoodTech/blob/main/SETUP_GUIDE.md" target="_blank" rel="noreferrer" className="text-sm text-slate-400 hover:text-white transition-colors">{text.setup}</a></li>
+              <li><a href="https://github.com/sd967967-ship-it/Agriculture-FoodTech" target="_blank" rel="noreferrer" className="text-sm text-slate-400 hover:text-white transition-colors">GitHub Repository</a></li>
               <li><a href="#" className="text-sm text-slate-400 hover:text-white transition-colors">API Docs</a></li>
             </ul>
           </div>

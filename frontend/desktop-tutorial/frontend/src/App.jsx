@@ -11,9 +11,9 @@ import ToolsPage from './pages/ToolsPage';
 export default function App() {
   return (
     <ErrorBoundary>
-      <div className="flex min-h-screen flex-col">
+      <div className="flex min-h-screen flex-col soft-grid">
         <Navbar />
-        <main className="flex-1">
+        <main className="page-enter flex-1">
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/diagnose" element={<DiagnosePage />} />
