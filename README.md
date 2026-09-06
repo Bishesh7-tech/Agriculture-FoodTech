@@ -442,9 +442,11 @@ curl -X POST http://localhost:8080/api/v1/diagnose ^
 2. Spring validates that the file exists and can be decoded.
 3. The model service writes a temporary PNG.
 4. Java starts `infer_crop_model.py` with model, labels, and image paths.
-5. Python returns JSON probabilities on standard output.
+5. Python averages five deterministic image views before returning JSON probabilities on standard output.
 6. Java validates the output and sorts it into a deterministic ordered map.
 7. The temporary input is deleted in a `finally` block.
+
+When configured, Spring Boot also sends the image to Plant.id as a server-side second opinion. Local TorchScript inference remains primary; agreement modestly reinforces confidence, while disagreement preserves uncertainty and escalation. The raw provider response and API key are never returned to React.
 
 ### Crop matching
 
@@ -509,11 +511,14 @@ Configuration is in `frontend/desktop-tutorial/src/main/resources/application.pr
 | `OPENWEATHER_API_KEY` | empty | Reserved weather configuration; local field estimates remain available. |
 | `WEATHER_BASE_URL` | Open-Meteo URL | Weather service base URL configuration. |
 | `TRANSLATION_API_URL` | Google Translate-compatible endpoint | Translates complete Bengali/Hindi diagnosis narratives; local glossary is used when unavailable. |
+| `PLANT_ID_API_KEY` | empty | Optional Plant.id API key for a server-side second opinion; leave empty to disable. |
+| `PLANT_ID_BASE_URL` | `https://api.plant.id/v3` | Plant.id API base URL. |
 
 Example PowerShell session:
 
 ```powershell
 $env:MANDI_API_KEY = "your-data-gov-api-key"
+$env:PLANT_ID_API_KEY = "your-plant-id-api-key"
 $env:PYTHON_EXE = "C:\Python312\python.exe"
 & .\run-app.bat
 ```
