@@ -11,8 +11,6 @@ import SafetyWarnings from '../components/SafetyWarnings';
 import EscalationAlert from '../components/EscalationAlert';
 import WeatherCard from '../components/WeatherCard';
 
-const MODEL_SUPPORTED_CROPS = new Set(['Potato', 'Tomato', 'Chilli', 'Maize']);
-
 export default function DiagnosePage() {
   const { language, t } = useLanguage();
   
@@ -419,7 +417,7 @@ export default function DiagnosePage() {
       try {
         const cropsRes = await getCrops();
         const districtsRes = await getDistricts();
-        setCrops((cropsRes.data || []).filter((crop) => MODEL_SUPPORTED_CROPS.has(crop.name)));
+        setCrops(cropsRes.data || []);
         setDistricts(districtsRes.data || []);
       } catch (err) {
         console.error("Error fetching form data:", err);
