@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ProfitCalculator } from './HomePage';
 import { useLanguage } from '../context/LanguageContext';
+import { getMandiPrices } from '../api/cropApi';
 
 const copy = {
   en: {
@@ -25,10 +26,33 @@ export default function ToolsPage() {
     try { return JSON.parse(localStorage.getItem('fasal-sathi-pest-history') || '[]'); } catch { return []; }
   });
   const [record, setRecord] = useState({ crop: 'Rice', issue: '', date: new Date().toISOString().slice(0, 10), action: '' });
-  const [schedule, setSchedule] = useState({ soil: text.soilOptions[0], date: '', frequency: '5' });
+  const [schedule, setSchedule] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('fasal-sathi-irrigation') || 'null') || { soil: text.soilOptions[0], date: '', frequency: '5' }; } catch { return { soil: text.soilOptions[0], date: '', frequency: '5' }; }
+  });
   const [scheduleSaved, setScheduleSaved] = useState(false);
   const [schemeCrop, setSchemeCrop] = useState('');
   const [profitInputs, setProfitInputs] = useState({ land: '2', crop: 'Tomato', seed: '4000', fertilizer: '7000', labour: '12000', production: '80', price: '2400' });
+  const [profitMarket, setProfitMarket] = useState(null);
+
+  useEffect(() => {
+    let active = true;
+    getMandiPrices(profitInputs.crop, 'West Bengal', '')
+      .then(({ data }) => {
+        if (!active) return;
+        setProfitMarket(data);
+        const modalPrice = Number(data?.records?.[0]?.modalPrice);
+        if (modalPrice > 0) {
+          setProfitInputs((current) => ({ ...current, price: String(modalPrice) }));
+        }
+      })
+      .catch(() => {
+        if (active) setProfitMarket(null);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [profitInputs.crop]);
 
   const saveHistory = (event) => {
     event.preventDefault();
@@ -57,7 +81,7 @@ export default function ToolsPage() {
       <section className="rounded-2xl border border-slate-700 bg-slate-900/80 p-6 shadow-md"><h2 className="text-2xl font-bold text-slate-100">{text.history}</h2><p className="mt-2 text-sm text-slate-400">{text.historyCopy}</p><form onSubmit={saveHistory} className="mt-6 grid gap-4 sm:grid-cols-2"><ToolSelect label={text.crop} value={record.crop} options={crops} onChange={(value) => setRecord({ ...record, crop: value })} /><ToolInput label={text.date} type="date" value={record.date} onChange={(value) => setRecord({ ...record, date: value })} /><ToolInput label={text.issue} value={record.issue} onChange={(value) => setRecord({ ...record, issue: value })} /><ToolInput label={text.action} value={record.action} onChange={(value) => setRecord({ ...record, action: value })} /><button className="rounded-lg bg-emerald-600 px-4 py-3 text-sm font-bold text-white hover:bg-emerald-500 sm:col-span-2">{text.save}</button></form><div className="mt-6 space-y-3">{history.length === 0 ? <p className="rounded-lg border border-dashed border-slate-700 p-4 text-sm text-slate-400">{text.empty}</p> : <><p className="text-xs font-bold uppercase tracking-wider text-emerald-400">{text.saved}</p>{history.map((item) => <div key={item.id} className="flex items-start justify-between gap-3 rounded-lg border border-slate-700 bg-slate-950/70 p-4"><div><p className="font-bold text-slate-100">{item.crop} · {item.date}</p><p className="mt-1 text-sm text-slate-300">{item.issue}</p>{item.action && <p className="mt-1 text-xs text-slate-400">{item.action}</p>}</div><button type="button" onClick={() => removeHistory(item.id)} className="text-xs font-semibold text-red-300 hover:text-red-200">{text.remove}</button></div>)}</>}</div></section>
       <section className="rounded-2xl border border-slate-700 bg-slate-900/80 p-6 shadow-md"><h2 className="text-2xl font-bold text-slate-100">{text.irrigation}</h2><p className="mt-2 text-sm text-slate-400">{text.irrigationCopy}</p><form onSubmit={saveSchedule} className="mt-6 grid gap-4"><ToolSelect label={text.soil} value={schedule.soil} options={text.soilOptions} onChange={(value) => setSchedule({ ...schedule, soil: value })} /><ToolInput label={text.nextWater} type="date" value={schedule.date} onChange={(value) => setSchedule({ ...schedule, date: value })} /><ToolInput label={text.frequency} type="number" min="1" max="30" value={schedule.frequency} onChange={(value) => setSchedule({ ...schedule, frequency: value })} /><button className="rounded-lg bg-emerald-600 px-4 py-3 text-sm font-bold text-white hover:bg-emerald-500">{text.schedule}</button></form>{scheduleSaved && <p className="mt-4 rounded-lg bg-emerald-950/70 p-3 text-sm text-emerald-300">{text.scheduleSaved}</p>}</section>
       <section className="rounded-2xl border border-slate-700 bg-slate-900/80 p-6 shadow-md"><h2 className="text-2xl font-bold text-slate-100">{text.schemes}</h2><p className="mt-2 text-sm text-slate-400">{text.schemesCopy}</p><label className="mt-6 block text-sm font-semibold text-slate-200">{text.schemeCrop}<select value={schemeCrop} onChange={(event) => setSchemeCrop(event.target.value)} className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-3 text-slate-100"><option value="">{text.all}</option>{crops.map((crop) => <option key={crop}>{crop}</option>)}</select></label><p className="mt-5 text-xs text-slate-400">{text.schemesFor}: {schemeCrop || text.general}</p><div className="mt-3 space-y-3">{text.schemesList.map(([name, description, url]) => <div key={name} className="rounded-lg border border-slate-700 bg-slate-950/70 p-4"><h3 className="font-bold text-slate-100">{name}</h3><p className="mt-1 text-sm text-slate-400">{description}</p><a className="mt-3 inline-flex text-sm font-bold text-emerald-300 hover:text-emerald-200" href={url} target="_blank" rel="noreferrer">{text.open} ↗</a></div>)}</div></section>
-      <section className="rounded-2xl border border-emerald-900/60 bg-emerald-950/40 p-6 shadow-md"><h2 className="text-2xl font-bold text-slate-100">{text.profit}</h2><div className="mt-6"><ProfitCalculator inputs={profitInputs} onChange={(field, value) => setProfitInputs({ ...profitInputs, [field]: value })} market={null} language={language} /></div></section>
+      <section className="rounded-2xl border border-emerald-900/60 bg-emerald-950/40 p-6 shadow-md"><h2 className="text-2xl font-bold text-slate-100">{text.profit}</h2><div className="mt-6"><ProfitCalculator inputs={profitInputs} onChange={(field, value) => setProfitInputs((current) => ({ ...current, [field]: value }))} market={profitMarket} language={language} /></div></section>
     </div>
   </div>;
 }

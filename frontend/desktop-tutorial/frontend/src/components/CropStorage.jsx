@@ -12,6 +12,8 @@ export default function CropStorage() {
     try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; }
   });
   const [form, setForm] = useState(emptyRecord);
+  const cropLabels = { en: CROPS, bn: ['ধান', 'আলু', 'পাট', 'সরষে', 'চা', 'টমেটো', 'বেগুন', 'লঙ্কা', 'আম', 'গম', 'ভুট্টা'], hi: ['धान', 'आलू', 'जूट', 'सरसों', 'चाय', 'टमाटर', 'बैंगन', 'मिर्च', 'आम', 'गेहूं', 'मक्का'] }[language] || CROPS;
+  const storageLabels = { en: ['Ventilated room', 'Cold storage', 'Warehouse', 'Jute sacks', 'Sell immediately'], bn: ['বায়ুচলাচলযুক্ত ঘর', 'হিমঘর', 'গুদাম', 'পাটের বস্তা', 'সঙ্গে সঙ্গে বিক্রি'], hi: ['हवादार कमरा', 'कोल्ड स्टोरेज', 'गोदाम', 'जूट की बोरियाँ', 'तुरंत बेचें'] }[language] || ['Ventilated room', 'Cold storage', 'Warehouse', 'Jute sacks', 'Sell immediately'];
   const update = (field, value) => setForm((current) => ({ ...current, [field]: value }));
   const save = (event) => {
     event.preventDefault();
@@ -33,11 +35,11 @@ export default function CropStorage() {
       <p className="text-xs text-slate-400">{copy.saved}</p>
     </div>
     <form onSubmit={save} className="mt-6 grid gap-4 sm:grid-cols-2">
-      <StorageSelect id="storage-crop" label={copy.crop} value={form.crop} options={CROPS} onChange={(value) => update('crop', value)} />
+      <StorageSelect id="storage-crop" label={copy.crop} value={form.crop} options={CROPS} labels={cropLabels} onChange={(value) => update('crop', value)} />
       <StorageInput id="storage-acres" label={copy.acres} type="number" min="0.1" step="0.1" value={form.acres} onChange={(value) => update('acres', value)} />
       <StorageInput id="storage-planted" label={copy.planted} type="date" value={form.planted} onChange={(value) => update('planted', value)} />
       <StorageInput id="storage-harvest" label={copy.harvest} type="date" value={form.harvest} onChange={(value) => update('harvest', value)} />
-      <StorageSelect id="storage-method" label={copy.method} value={form.storage} options={['Ventilated room', 'Cold storage', 'Warehouse', 'Jute sacks', 'Sell immediately']} onChange={(value) => update('storage', value)} />
+      <StorageSelect id="storage-method" label={copy.method} value={form.storage} options={['Ventilated room', 'Cold storage', 'Warehouse', 'Jute sacks', 'Sell immediately']} labels={storageLabels} onChange={(value) => update('storage', value)} />
       <StorageInput id="storage-notes" label={copy.notes} value={form.notes} placeholder={copy.placeholder} onChange={(value) => update('notes', value)} />
       <button type="submit" className="rounded-lg bg-emerald-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-emerald-500 sm:col-span-2">{copy.save}</button>
     </form>
@@ -51,6 +53,6 @@ function StorageInput({ id, label, value, onChange, type = 'text', ...props }) {
   return <label htmlFor={id} className="block text-sm font-semibold text-slate-200">{label}<input id={id} type={type} value={value} onChange={(event) => onChange(event.target.value)} className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-3 text-slate-100 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/30" {...props} /></label>;
 }
 
-function StorageSelect({ id, label, value, options, onChange }) {
-  return <label htmlFor={id} className="block text-sm font-semibold text-slate-200">{label}<select id={id} value={value} onChange={(event) => onChange(event.target.value)} className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-3 text-slate-100 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/30">{options.map((option) => <option key={option}>{option}</option>)}</select></label>;
+function StorageSelect({ id, label, value, options, labels = options, onChange }) {
+  return <label htmlFor={id} className="block text-sm font-semibold text-slate-200">{label}<select id={id} value={value} onChange={(event) => onChange(event.target.value)} className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-3 text-slate-100 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/30">{options.map((option, index) => <option key={option} value={option}>{labels[index] || option}</option>)}</select></label>;
 }

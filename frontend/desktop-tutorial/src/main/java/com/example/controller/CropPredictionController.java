@@ -17,6 +17,8 @@ import com.example.service.TranslationService;
 import com.example.service.WBCropKnowledgeBase;
 import com.example.service.WeatherService;
 import org.springframework.http.MediaType;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -230,6 +232,12 @@ public class CropPredictionController {
         return h;
     }
 
+    /** Returns the most recent local diagnosis records for the farmer history view. */
+    @GetMapping("/diagnosis-history")
+    public List<PredictionLog> diagnosisHistory() {
+        return predictionLogRepository.findTop50ByOrderByCreatedAtDesc();
+    }
+
     private Double parseDouble(String value) {
         if (value == null || value.isBlank()) return null;
         try {
@@ -237,5 +245,19 @@ public class CropPredictionController {
         } catch (NumberFormatException e) {
             return null;
         }
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<Map<String, Object>> invalidRequest(IllegalArgumentException exception) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
+                "error", "INVALID_REQUEST",
+                "message", exception.getMessage() != null ? exception.getMessage() : "Please check the submitted image and fields."));
+    }
+
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<Map<String, Object>> serviceFailure(IllegalStateException exception) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of(
+                "error", "SERVICE_UNAVAILABLE",
+                "message", "The diagnosis service is temporarily unavailable. Please try again."));
     }
 }

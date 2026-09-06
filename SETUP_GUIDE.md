@@ -9,7 +9,7 @@ setup-and-run.bat
 ```
 
 This script will:
-- ✓ Check Java JDK 21+
+- ✓ Check Java JDK 25+
 - ✓ Install Maven if needed  
 - ✓ Check Node.js and npm
 - ✓ Build the React frontend
@@ -18,7 +18,7 @@ This script will:
 
 ### Option 2: Manual Setup
 If you prefer manual control, ensure you have installed:
-- Java JDK 21+ - https://www.oracle.com/java/technologies/downloads/
+- Java JDK 25+ - https://www.oracle.com/java/technologies/downloads/
 - Maven 3.9+ - https://maven.apache.org/download.cgi
 - Node.js 20+ - https://nodejs.org/
 
@@ -31,7 +31,7 @@ run-app.bat
 
 | Component | Minimum | Recommended |
 |-----------|---------|-------------|
-| Java | JDK 21 | JDK 26 |
+| Java | JDK 25 | JDK 25+ |
 | Maven | 3.9 | 3.9.9+ |
 | Node.js | 20 LTS | 22 LTS |
 | RAM | 2GB | 4GB+ |
@@ -66,7 +66,7 @@ Do NOT open any other URLs or index files. All features are accessed through the
 
 ## Troubleshooting
 
-### Problem: "Java JDK 21+ not found"
+### Problem: "Java JDK 25+ not found"
 **Solution:** Install Java from https://www.oracle.com/java/technologies/downloads/
 Then add it to your system PATH:
 1. Right-click "This PC" → Properties

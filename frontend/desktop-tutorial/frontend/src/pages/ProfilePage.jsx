@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useLanguage } from '../context/LanguageContext';
 import CropStorage from '../components/CropStorage';
+import { getDiagnosisHistory } from '../api/cropApi';
 
 const STORAGE_KEY = 'fasal-sathi-farmer-profile';
 const emptyProfile = { name: '', village: '', district: '', phone: '', language: 'English' };
@@ -16,6 +17,14 @@ export default function ProfilePage() {
   });
   const [saved, setSaved] = useState(false);
   const [savedProfile, setSavedProfile] = useState(profile);
+  const [diagnosisHistory, setDiagnosisHistory] = useState([]);
+  const [historyError, setHistoryError] = useState('');
+
+  useEffect(() => {
+    getDiagnosisHistory()
+      .then(({ data }) => setDiagnosisHistory(Array.isArray(data) ? data : []))
+      .catch(() => setHistoryError(language === 'bn' ? 'রোগ নির্ণয়ের ইতিহাস লোড করা যায়নি।' : language === 'hi' ? 'निदान इतिहास लोड नहीं हो सका।' : 'Diagnosis history could not be loaded.'));
+  }, [language]);
 
   const update = (field, value) => setProfile((current) => ({ ...current, [field]: value }));
   const save = (event) => {
@@ -54,6 +63,14 @@ export default function ProfilePage() {
       <div className="mt-6">
         <CropStorage />
       </div>
+      <section className="mt-6 rounded-2xl border border-slate-700 bg-slate-900/70 p-6 shadow-md sm:p-8" aria-labelledby="diagnosis-history-title">
+        <p className="text-xs font-bold uppercase tracking-widest text-emerald-400">{language === 'bn' ? 'সংরক্ষিত ফলাফল' : language === 'hi' ? 'सहेजे गए परिणाम' : 'Saved results'}</p>
+        <h2 id="diagnosis-history-title" className="mt-2 text-2xl font-bold text-slate-100">{language === 'bn' ? 'রোগ নির্ণয়ের ইতিহাস' : language === 'hi' ? 'निदान इतिहास' : 'Diagnosis history'}</h2>
+        <p className="mt-2 text-sm text-slate-400">{language === 'bn' ? 'সর্বশেষ ৫০টি রোগ নির্ণয়ের রেকর্ড এই ডিভাইসের স্থানীয় ডেটাবেসে রাখা হয়।' : language === 'hi' ? 'निदान के अंतिम ५० रिकॉर्ड इस डिवाइस के स्थानीय डेटाबेस में रखे जाते हैं।' : 'The latest 50 diagnosis records are stored in the local database for this application.'}</p>
+        {historyError && <p className="mt-4 rounded-lg bg-red-950/60 p-3 text-sm text-red-200">{historyError}</p>}
+        {!historyError && diagnosisHistory.length === 0 && <p className="mt-4 rounded-lg border border-dashed border-slate-700 p-4 text-sm text-slate-400">{language === 'bn' ? 'এখনও কোনো রোগ নির্ণয়ের রেকর্ড নেই।' : language === 'hi' ? 'अभी कोई निदान रिकॉर्ड नहीं है।' : 'No diagnosis records yet.'}</p>}
+        <div className="mt-4 space-y-3">{diagnosisHistory.map((item) => <div key={item.id} className="rounded-xl border border-slate-700 bg-slate-950/70 p-4"><div className="flex flex-col justify-between gap-2 sm:flex-row"><p className="font-bold text-slate-100">{item.topDisease || 'Unknown'} · {Math.round((item.confidence || 0) * 100)}%</p><p className="text-xs text-slate-400">{item.createdAt ? new Date(item.createdAt).toLocaleString() : ''}</p></div><p className="mt-1 text-sm text-slate-300">{item.cropType || 'Crop'}{item.cropStage ? ` · ${item.cropStage}` : ''}{item.district ? ` · ${item.district}` : ''}</p><p className="mt-1 text-xs text-slate-400">{item.diagnosisType}{item.isEscalated ? ' · Expert review recommended' : ''}</p></div>)}</div>
+      </section>
     </div>
   );
 }

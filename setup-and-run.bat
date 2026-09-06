@@ -4,6 +4,7 @@ REM This script handles all dependencies and starts the application
 
 setlocal enabledelayedexpansion
 cd /d "%~dp0"
+if not defined APP_URL set "APP_URL=http://localhost:8080"
 
 REM Color output
 for /f %%A in ('copy /Z "%~f0" nul') do set "BS=%%A"
@@ -16,16 +17,25 @@ echo.
 
 REM ===== JAVA CHECK =====
 echo [1/4] Checking Java installation...
+REM Prefer the configured Java 25 LTS installation so the launcher matches pom.xml.
+for /d %%D in ("%LOCALAPPDATA%\Programs\Eclipse Adoptium\jdk-25*" "%LOCALAPPDATA%\jdks\jdk-25*" "C:\Program Files\Java\jdk-25*") do (
+  if exist "%%~D\bin\java.exe" (
+    set "JAVA_HOME=%%~D"
+    set "PATH=%%~D\bin;!PATH!"
+    goto java_ready
+  )
+)
 java -version >nul 2>&1
 if errorlevel 1 (
-  echo ERROR: Java JDK 21+ is required but not found.
+  echo ERROR: Java JDK 25+ is required but not found.
   echo Please install Java from: https://www.oracle.com/java/technologies/downloads/
   echo Then add it to your system PATH and try again.
   pause
   exit /b 1
 )
-for /f "tokens=2" %%i in ('java -version 2^>^&1 ^| find "version"') do (
-  set JAVA_VERSION=%%i
+ :java_ready
+for /f "tokens=3" %%i in ('java -version 2^>^&1 ^| find "version"') do (
+  set JAVA_VERSION=%%~i
   echo ✓ Java found: !JAVA_VERSION!
 )
 
@@ -39,6 +49,8 @@ if errorlevel 1 (
   REM Check common locations
   set MAVEN_FOUND=0
   for %%D in (
+    "%USERPROFILE%\.maven\maven-3.9.15"
+    "%USERPROFILE%\.maven\maven-3.10.0-rc-1"
     "C:\Program Files\Apache\Maven"
     "C:\Program Files\Maven"
     "C:\apache-maven-3.9.9"
@@ -159,8 +171,14 @@ set "HEALTH_URL=%APP_URL%/api/v1/health"
 set "SERVER_READY=0"
 REM Stop any older FasalSathi instance using the same port.
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$connection = Get-NetTCPConnection -LocalPort 8080 -State Listen -ErrorAction SilentlyContinue; if ($connection) { Stop-Process -Id $connection.OwningProcess -Force -ErrorAction SilentlyContinue }" >nul 2>&1
+for /l %%N in (1,1,10) do (
+  powershell -NoProfile -ExecutionPolicy Bypass -Command "if (Get-NetTCPConnection -LocalPort 8080 -State Listen -ErrorAction SilentlyContinue) { exit 1 } else { exit 0 }" >nul 2>&1
+  if not errorlevel 1 goto port_ready
+  timeout /t 1 /nobreak >nul
+)
+:port_ready
 pushd "%BACKEND_DIR%"
-start "FasalSathi Backend" cmd /k "title FasalSathi Backend Server && mvn spring-boot:run"
+start "FasalSathi Backend" "%ComSpec%" /k "title FasalSathi Backend Server && mvn spring-boot:run"
 popd
 
 REM Wait for backend to start

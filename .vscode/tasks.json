@@ -20,7 +20,7 @@
         {
             "label": "Build FasalSathi",
             "type": "shell",
-            "command": "mvn clean package",
+            "command": "${workspaceFolder}\\build-app.bat",
             "options": {
                 "cwd": "${workspaceFolder}"
             },

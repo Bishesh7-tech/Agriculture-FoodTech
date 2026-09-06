@@ -74,7 +74,7 @@ public class MandiUpdates {
 
             List<Map<String, Object>> parsed = recordsFromApi.stream()
                     .filter(Map.class::isInstance)
-                    .map(record -> (Map<String, Object>) record)
+                    .map(record -> toObjectMap((Map<?, ?>) record))
                     .map(entry -> {
                         Map<String, Object> normalized = new LinkedHashMap<>();
                         normalized.put("market", entry.getOrDefault("Market", entry.getOrDefault("market", "Unknown market")));
@@ -166,6 +166,23 @@ public class MandiUpdates {
      * Backward compatible method for existing callers.
      */
     public List<Map<String, Object>> getUpdates(String crop, String state, int limit) {
-        return (List<Map<String, Object>>) getLivePrices(crop, state, null, limit).getOrDefault("records", Collections.emptyList());
+        Object records = getLivePrices(crop, state, null, limit).get("records");
+        if (records instanceof List<?> recordList) {
+            return recordList.stream()
+                    .filter(Map.class::isInstance)
+                    .map(record -> toObjectMap((Map<?, ?>) record))
+                    .toList();
+        }
+        return Collections.emptyList();
+    }
+
+    private Map<String, Object> toObjectMap(Map<?, ?> source) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        source.forEach((key, value) -> {
+            if (key != null) {
+                result.put(String.valueOf(key), value);
+            }
+        });
+        return result;
     }
 }

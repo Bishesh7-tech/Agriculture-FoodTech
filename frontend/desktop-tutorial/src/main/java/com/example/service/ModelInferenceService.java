@@ -80,6 +80,7 @@ public class ModelInferenceService {
             if (decoded == null || decoded.getWidth() < 160 || decoded.getHeight() < 160) {
                 throw new IllegalArgumentException("The image is too small or cannot be read. Upload a clear crop leaf photo.");
             }
+            validateImageQuality(decoded);
         } catch (IOException exception) {
             throw new IllegalArgumentException("The image could not be read. Upload a JPG or PNG crop leaf photo.", exception);
         }
@@ -188,5 +189,35 @@ public class ModelInferenceService {
         }
 
         return "python";
+    }
+
+    private void validateImageQuality(BufferedImage image) {
+        long brightnessTotal = 0;
+        long brightnessSquared = 0;
+        int sampleCount = 0;
+        int stepX = Math.max(1, image.getWidth() / 96);
+        int stepY = Math.max(1, image.getHeight() / 96);
+
+        for (int y = 0; y < image.getHeight(); y += stepY) {
+            for (int x = 0; x < image.getWidth(); x += stepX) {
+                int rgb = image.getRGB(x, y);
+                int red = (rgb >> 16) & 0xff;
+                int green = (rgb >> 8) & 0xff;
+                int blue = rgb & 0xff;
+                int brightness = (red + green + blue) / 3;
+                brightnessTotal += brightness;
+                brightnessSquared += (long) brightness * brightness;
+                sampleCount++;
+            }
+        }
+
+        double average = (double) brightnessTotal / sampleCount;
+        double variance = ((double) brightnessSquared / sampleCount) - (average * average);
+        if (average < 18 || average > 242) {
+            throw new IllegalArgumentException("The image is too dark or overexposed. Upload a clear leaf photo in natural light.");
+        }
+        if (variance < 20) {
+            throw new IllegalArgumentException("The image does not contain enough visible leaf detail. Upload a focused crop leaf photo.");
+        }
     }
 }
