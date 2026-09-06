@@ -71,7 +71,12 @@ public class AdvisoryService {
                 .toList();
 
         Map.Entry<String, Double> top = sorted.get(0);
-        double confidence = top.getValue();
+        double cropProbabilityTotal = cropPredictions.stream()
+            .mapToDouble(Map.Entry::getValue)
+            .sum();
+        double confidence = cropProbabilityTotal > 0
+            ? top.getValue() / cropProbabilityTotal
+            : top.getValue();
         String primaryClass = top.getKey();
 
         // ── Diagnosis type ──────────────────────────────────────────
@@ -89,9 +94,12 @@ public class AdvisoryService {
             String candExplanation = candAdvisory != null
                     ? candAdvisory.description()
                     : "No detailed information available for this condition.";
+                double candidateConfidence = cropProbabilityTotal > 0
+                    ? entry.getValue() / cropProbabilityTotal
+                    : entry.getValue();
             candidates.add(new DiagnosisDetailDTO(
                     candAdvisory != null ? candAdvisory.diseaseName() : entry.getKey(),
-                    entry.getValue(),
+                    candidateConfidence,
                     candExplanation,
                     i == 0));
         }

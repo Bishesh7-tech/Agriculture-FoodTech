@@ -36,7 +36,7 @@ export default function Footer() {
           <div>
             <h4 className="font-semibold text-sm mb-3 text-slate-200">{text.resources}</h4>
             <ul className="space-y-2">
-              <li><a href="/SETUP_GUIDE.md" className="text-sm text-slate-400 hover:text-white transition-colors">{text.setup}</a></li>
+              <li><a href="https://github.com/mujahidislamm/Agriculture-FoodTech/blob/main/SETUP_GUIDE.md" target="_blank" rel="noreferrer" className="text-sm text-slate-400 hover:text-white transition-colors">{text.setup}</a></li>
               <li><a href="https://github.com/mujahidislamm/Agriculture-FoodTech" className="text-sm text-slate-400 hover:text-white transition-colors">GitHub Repository</a></li>
               <li><a href="#" className="text-sm text-slate-400 hover:text-white transition-colors">API Docs</a></li>
             </ul>

@@ -631,6 +631,10 @@ If a farmer can receive an understandable, locally relevant, safety-aware next s
 
 FasalSathi intentionally communicates uncertainty. It does not present every model output as a fact, does not recommend treatment when the crop does not match, and provides a human escalation path when confidence or evidence is insufficient.
 
+### Model coverage and confidence note
+
+The bundled classifier currently contains Potato, Tomato, Pepper/Chilli, Corn/Maize, Apple, Grape, and related disease labels. The diagnosis form therefore exposes only the bundled model's supported West Bengal crops: Potato, Tomato, Chilli, and Maize. Broader crops remain available in market, harvest, and planning tools. The repository's two image fixtures are synthetic low-detail images and are rejected before inference; they must not be used to judge model accuracy. Retraining is recommended before adding Rice, Jute, Mustard, Tea, Mango, Wheat, or other unsupported diagnosis crops, using representative field images and a held-out validation set.
+
 ## License and data note
 
 Review the repository's licensing and dataset provenance before public distribution. Do not commit private API keys, farmer-identifying information, or unverified agronomic claims.
