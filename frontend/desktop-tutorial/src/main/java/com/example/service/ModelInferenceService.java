@@ -77,8 +77,8 @@ public class ModelInferenceService {
 
         try (var input = image.getInputStream()) {
             BufferedImage decoded = ImageIO.read(input);
-            if (decoded == null || decoded.getWidth() < 160 || decoded.getHeight() < 160) {
-                throw new IllegalArgumentException("The image is too small or cannot be read. Upload a clear crop leaf photo.");
+            if (decoded == null || decoded.getWidth() < 64 || decoded.getHeight() < 64) {
+                throw new IllegalArgumentException("The image is too small or cannot be read. Upload a crop leaf photo at least 64 x 64 pixels.");
             }
             validateImageQuality(decoded);
         } catch (IOException exception) {
@@ -121,8 +121,10 @@ public class ModelInferenceService {
                     .sorted(Map.Entry.<String, Double>comparingByValue().reversed())
                     .forEach(entry -> ordered.put(entry.getKey(), entry.getValue()));
             return ordered;
-        } catch (IOException | InterruptedException exception) {
+        } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
+            throw new IllegalStateException("Unable to run crop model inference", exception);
+        } catch (IOException exception) {
             throw new IllegalStateException("Unable to run crop model inference", exception);
         } finally {
             if (tempImage != null) {

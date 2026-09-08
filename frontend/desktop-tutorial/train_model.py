@@ -6,6 +6,8 @@ import argparse
 import json
 import os
 import random
+import time
+import zipfile
 from collections import Counter
 from pathlib import Path
 
@@ -23,6 +25,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--plantdoc-dir", type=Path, default=Path("data/PlantDoc-Dataset-master"))
     parser.add_argument("--field-dir", type=Path, default=None,
                         help="Optional field-photo directory with one folder per canonical class")
+    parser.add_argument("--dataset-zip", type=Path, action="append", default=[],
+                        help="Additional ZIP dataset; may be supplied multiple times")
+    parser.add_argument("--extracted-data-dir", type=Path, default=Path("data/supplied"),
+                        help="Directory used to cache extracted ZIP datasets")
     parser.add_argument("--output-dir", type=Path, default=Path("models"))
     parser.add_argument("--epochs", type=int, default=15)
     parser.add_argument("--batch-size", type=int, default=32)
@@ -84,6 +90,30 @@ def canonicalize_label(label: str) -> str:
     """Merge naming variants from PlantVillage and PlantDoc into one class."""
     normalized = " ".join(label.lower().replace("_", " ").replace("-", " ").split())
     normalized = normalized.replace("bell pepper", "pepper")
+    if normalized in {"healthy", "wheat healthy"}:
+        return "Wheat_healthy"
+    if normalized in {"stripe rust", "wheat yellow rust", "yellow rust"}:
+        return "Wheat_Stripe_rust"
+    if normalized in {"wheat brown rust", "brown rust"}:
+        return "Wheat_Brown_rust"
+    if normalized in {"wheat loose smut", "loose smut"}:
+        return "Wheat_Loose_smut"
+    if normalized == "septoria":
+        return "Wheat_Septoria"
+    if normalized in {"brinjal healthy", "fresh brinjal leaf", "brinjal healthy leaf"}:
+        return "Brinjal_healthy"
+    if normalized in {"brinjal little leaf", "little leaf"}:
+        return "Brinjal_Little_leaf"
+    if normalized in {"bacterial leaf blight", "rice bacterial leaf blight"}:
+        return "Rice_Bacterial_leaf_blight"
+    if normalized in {"brown spot", "rice brown spot"}:
+        return "Rice_Brown_spot"
+    if normalized in {"leaf smut", "rice leaf smut"}:
+        return "Rice_Leaf_smut"
+    if normalized in {"rice healthy"}:
+        return "Rice_healthy"
+    if normalized in {"rice leaf blast", "leaf blast"}:
+        return "Rice_Leaf_blast"
     if normalized in {"apple leaf", "apple healthy leaf"}:
         return "Apple_healthy"
     if "apple" in normalized and "scab" in normalized:
@@ -162,6 +192,41 @@ class LabelledImages(VisionDataset):
         return len(self.samples)
 
 
+def find_imagefolder_roots(root: Path) -> list[Path]:
+    """Find directories whose immediate child directories contain images."""
+    image_extensions = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
+    roots = []
+    for directory in [root, *[path for path in root.rglob("*") if path.is_dir()]]:
+        child_class_dirs = [
+            child for child in directory.iterdir() if child.is_dir()
+            and any(file.suffix.lower() in image_extensions for file in child.rglob("*"))
+        ] if directory.is_dir() else []
+        if len(child_class_dirs) >= 2:
+            roots.append(directory)
+    return [root for root in roots if not any(other != root and root in other.parents for other in roots)]
+
+
+def extract_zip_datasets(args: argparse.Namespace) -> list[Path]:
+    roots = []
+    for archive in args.dataset_zip:
+        if not archive.is_file():
+            raise FileNotFoundError(f"Dataset ZIP does not exist: {archive}")
+        destination = args.extracted_data_dir / archive.stem
+        marker = destination / ".extracted"
+        if not marker.exists():
+            destination.mkdir(parents=True, exist_ok=True)
+            with zipfile.ZipFile(archive) as zipped:
+                zipped.extractall(destination)
+            marker.write_text("ok\n", encoding="utf-8")
+        for extracted_file in destination.rglob("*"):
+            if extracted_file.is_file():
+                extracted_file.chmod(0o600)
+        roots.extend(find_imagefolder_roots(destination))
+    if args.dataset_zip and not roots:
+        raise ValueError("No ImageFolder-compatible class directories found in the supplied ZIP datasets")
+    return roots
+
+
 def split_by_class(samples: list[tuple[Path, str]], ratio: float, seed: int):
     if not 0 < ratio < 1:
         raise ValueError("plantvillage-test-ratio must be between 0 and 1")
@@ -179,11 +244,18 @@ def split_by_class(samples: list[tuple[Path, str]], ratio: float, seed: int):
 
 
 def build_datasets(args: argparse.Namespace):
-    village = collect_samples(find_plantvillage_root(args.plantvillage_dir), args.max_images_per_class)
-    doc_train = collect_samples(args.plantdoc_dir / "train", args.max_images_per_class)
-    doc_test = collect_samples(args.plantdoc_dir / "test", args.max_images_per_class)
+    village_root = find_plantvillage_root(args.plantvillage_dir)
+    village = collect_samples(village_root, args.max_images_per_class) if village_root.is_dir() else []
+    doc_train_root, doc_test_root = args.plantdoc_dir / "train", args.plantdoc_dir / "test"
+    doc_train = collect_samples(doc_train_root, args.max_images_per_class) if doc_train_root.is_dir() else []
+    doc_test = collect_samples(doc_test_root, args.max_images_per_class) if doc_test_root.is_dir() else []
     field = collect_samples(args.field_dir, args.max_images_per_class) if args.field_dir else []
-    classes = sorted({label for _, label in village + doc_train + doc_test + field})
+    zip_roots = extract_zip_datasets(args)
+    supplied = []
+    for root in zip_roots:
+        supplied.extend(collect_samples(root, args.max_images_per_class))
+    supplied_train, supplied_test = split_by_class(supplied, args.plantvillage_test_ratio, args.seed) if supplied else ([], [])
+    classes = sorted({label for _, label in village + doc_train + doc_test + field + supplied})
     if len(classes) < 2:
         raise ValueError("At least two class folders are required")
     indices = {label: index for index, label in enumerate(classes)}
@@ -192,14 +264,23 @@ def build_datasets(args: argparse.Namespace):
                   LabelledImages(doc_train, indices, image_transform(True))]
     if field:
         train_sets.append(LabelledImages(field, indices, image_transform(True)))
+    if supplied_train:
+        train_sets.append(LabelledImages(supplied_train, indices, image_transform(True)))
     train = ConcatDataset(train_sets)
-    test = ConcatDataset([LabelledImages(village_test, indices, image_transform(False)),
-                          LabelledImages(doc_test, indices, image_transform(False))])
+    test_sets = [LabelledImages(village_test, indices, image_transform(False)),
+                 LabelledImages(doc_test, indices, image_transform(False))]
+    if supplied_test:
+        test_sets.append(LabelledImages(supplied_test, indices, image_transform(False)))
+    test = ConcatDataset(test_sets)
     train_targets = [target for _, target in LabelledImages(village_train, indices, image_transform(False)).samples]
     train_targets.extend(target for _, target in LabelledImages(doc_train, indices, image_transform(False)).samples)
     if field:
         train_targets.extend(target for _, target in LabelledImages(field, indices, image_transform(False)).samples)
-    return classes, train, test, train_targets
+    if supplied_train:
+        train_targets.extend(target for _, target in LabelledImages(supplied_train, indices, image_transform(False)).samples)
+    if not train_targets or not len(test):
+        raise ValueError("Training and validation images are required")
+    return classes, train, test, train_targets, len(supplied)
 
 
 def train_epoch(model, loader, device, optimizer, loss_function) -> float:
@@ -236,8 +317,8 @@ def main() -> None:
     set_seed(args.seed)
     if not torch.cuda.is_available():
         torch.set_num_threads(max(1, min(4, os.cpu_count() or 1)))
-    classes, train_data, test_data, train_targets = build_datasets(args)
-    print(f"Training on {len(train_data)} images; testing on {len(test_data)} images across {len(classes)} classes")
+    classes, train_data, test_data, train_targets, supplied_images = build_datasets(args)
+    print(f"Training on {len(train_data)} images; testing on {len(test_data)} images across {len(classes)} classes", flush=True)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     train_loader = DataLoader(train_data, batch_size=args.batch_size, shuffle=True, num_workers=0)
     test_loader = DataLoader(test_data, batch_size=args.batch_size, num_workers=0)
@@ -272,19 +353,29 @@ def main() -> None:
         "epochs": [],
         "backbone": args.backbone,
         "unfreezeFrom": args.unfreeze_from,
-        "fieldImages": len(field) if args.field_dir else 0,
+        "fieldImages": len(train_targets) if args.field_dir else 0,
+        "suppliedZipImages": supplied_images,
     }
+    training_started = time.perf_counter()
     for epoch in range(args.epochs):
+        epoch_started = time.perf_counter()
         loss = train_epoch(model, train_loader, device, optimizer, loss_function)
         accuracy, _, _ = evaluate(model, test_loader, device)
         metrics["epochs"].append({"epoch": epoch + 1, "loss": loss, "accuracy": accuracy})
-        print(f"Epoch {epoch + 1}/{args.epochs}: loss={loss:.4f}, accuracy={accuracy:.2%}")
+        epoch_seconds = time.perf_counter() - epoch_started
+        remaining_seconds = epoch_seconds * (args.epochs - epoch - 1)
+        print(
+            f"Epoch {epoch + 1}/{args.epochs}: loss={loss:.4f}, accuracy={accuracy:.2%}; "
+            f"elapsed={time.perf_counter() - training_started:.0f}s, "
+            f"estimated remaining={remaining_seconds / 60:.1f}m",
+            flush=True,
+        )
     args.output_dir.mkdir(parents=True, exist_ok=True)
     model.to("cpu").eval()
     torch.jit.trace(model, torch.zeros(1, 3, 224, 224)).save(str(args.output_dir / "crop_model.pt"))
     (args.output_dir / "classes.txt").write_text("\n".join(classes) + "\n", encoding="utf-8")
     (args.output_dir / "evaluation.json").write_text(json.dumps(metrics, indent=2), encoding="utf-8")
-    print(f"Saved {args.output_dir / 'crop_model.pt'} and {args.output_dir / 'classes.txt'}")
+    print(f"Saved {args.output_dir / 'crop_model.pt'} and {args.output_dir / 'classes.txt'}", flush=True)
 
 
 if __name__ == "__main__":

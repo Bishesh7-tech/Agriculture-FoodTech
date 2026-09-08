@@ -19,6 +19,7 @@ import java.util.Objects;
 public class TranslationService {
 
     private final RestClient translationClient;
+    private final RestClient fallbackTranslationClient;
     private final ObjectMapper objectMapper;
     private final Map<String, String> translationCache = new ConcurrentHashMap<>();
 
@@ -33,6 +34,10 @@ public class TranslationService {
                 .baseUrl(Objects.requireNonNull(translationApiUrl))
                 .requestFactory(requestFactory)
                 .build();
+        this.fallbackTranslationClient = restClientBuilder
+            .baseUrl("https://api.mymemory.translated.net")
+            .requestFactory(requestFactory)
+            .build();
         this.objectMapper = objectMapper;
     }
 
@@ -159,7 +164,9 @@ public class TranslationService {
                     : "hi".equals(lang) ? "छवि का फसल से मिलान नहीं हुआ" : diseaseName;
         }
         Map<String, String> t = DISEASE_NAMES.get(diseaseName);
-        return t != null ? t.getOrDefault(lang, diseaseName) : diseaseName;
+        if (t != null) return t.getOrDefault(lang, diseaseName);
+        String translated = translateWithApi(diseaseName, lang);
+        return translated != null && !translated.isBlank() ? translated : diseaseName;
     }
 
     /**
@@ -443,8 +450,40 @@ public class TranslationService {
                     .body(String.class);
 
             JsonNode root = objectMapper.readTree(response);
-            if (root == null || !root.isArray() || root.isEmpty() || !root.get(0).isArray()) return null;
+            if (root != null && root.isArray() && !root.isEmpty() && root.get(0).isArray()) {
+                String value = joinGoogleSegments(root);
+                if (!value.isBlank()) {
+                    translationCache.put(cacheKey, value);
+                    return value;
+                }
+            }
+        } catch (Exception ignored) {
+            // Try the secondary provider below.
+        }
 
+        try {
+            String response = fallbackTranslationClient.get()
+                    .uri(uriBuilder -> uriBuilder
+                            .path("/get")
+                            .queryParam("q", text)
+                            .queryParam("langpair", "en|" + lang)
+                            .build())
+                    .retrieve()
+                    .body(String.class);
+            JsonNode root = objectMapper.readTree(response);
+            JsonNode translated = root == null ? null : root.path("responseData").path("translatedText");
+            if (translated != null && translated.isTextual() && !translated.asText().isBlank()) {
+                String value = translated.asText().trim();
+                translationCache.put(cacheKey, value);
+                return value;
+            }
+        } catch (Exception ignored) {
+            // Use the offline dictionary below.
+        }
+        return null;
+    }
+
+    private String joinGoogleSegments(JsonNode root) {
             StringBuilder translated = new StringBuilder();
             for (JsonNode segment : root.get(0)) {
                 if (segment.isArray() && !segment.isEmpty() && segment.get(0).isTextual()) {
@@ -452,12 +491,7 @@ public class TranslationService {
                 }
             }
 
-            String value = translated.toString().trim();
-            if (!value.isBlank()) translationCache.put(cacheKey, value);
-            return value;
-        } catch (Exception ignored) {
-            return null;
-        }
+            return translated.toString().trim();
     }
 
     /**

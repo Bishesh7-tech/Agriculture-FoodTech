@@ -332,8 +332,8 @@ export default function DiagnosePage() {
     const objectUrl = URL.createObjectURL(file);
     image.onload = () => {
       try {
-        if (image.naturalWidth < 160 || image.naturalHeight < 160) {
-          resolve('Image is too small. Please upload a clear crop-leaf photo at least 160 × 160 pixels.');
+        if (image.naturalWidth < 64 || image.naturalHeight < 64) {
+          resolve('Image is too small. Please upload a crop-leaf photo at least 64 × 64 pixels.');
           return;
         }
         const canvas = document.createElement('canvas');
@@ -635,22 +635,28 @@ export default function DiagnosePage() {
 
       const hasLocation = latitude && longitude;
       if (hasLocation) {
-        const [weatherRes, kvkRes, mandiRes] = await Promise.all([
+        const [weatherRes, kvkRes, mandiRes] = await Promise.allSettled([
           getWeather(latitude, longitude),
           getKvkInfo(district || '', latitude, longitude),
           getMandiPrices(cropType, 'West Bengal', district)
         ]);
 
-        setLiveWeather(weatherRes.data || null);
-        setKvkInfo(kvkRes.data || null);
-        setMandiPrices((mandiRes.data && Array.isArray(mandiRes.data.records)) ? mandiRes.data.records : []);
+        if (weatherRes.status === 'fulfilled') setLiveWeather(weatherRes.value.data || null);
+        if (kvkRes.status === 'fulfilled') setKvkInfo(kvkRes.value.data || null);
+        if (mandiRes.status === 'fulfilled') {
+          const records = mandiRes.value.data?.records;
+          setMandiPrices(Array.isArray(records) ? records : []);
+        }
       } else if (district) {
-        const [kvkRes, mandiRes] = await Promise.all([
+        const [kvkRes, mandiRes] = await Promise.allSettled([
           getKvkInfo(district, null, null),
           getMandiPrices(cropType, 'West Bengal', district)
         ]);
-        setKvkInfo(kvkRes.data || null);
-        setMandiPrices((mandiRes.data && Array.isArray(mandiRes.data.records)) ? mandiRes.data.records : []);
+        if (kvkRes.status === 'fulfilled') setKvkInfo(kvkRes.value.data || null);
+        if (mandiRes.status === 'fulfilled') {
+          const records = mandiRes.value.data?.records;
+          setMandiPrices(Array.isArray(records) ? records : []);
+        }
       }
     } catch (err) {
       console.error(err);

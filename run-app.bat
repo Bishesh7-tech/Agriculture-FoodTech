@@ -1,7 +1,7 @@
 @echo off
 setlocal
 cd /d "%~dp0"
-set "APP_URL=http://localhost:8080"
+set "APP_URL=http://localhost:8081"
 
 echo FasalSathi main website: %APP_URL%
 echo.

@@ -55,22 +55,25 @@ public class AdvisoryService {
         Map.Entry<String, Double> overallTop = predictions.entrySet().stream()
             .max(Map.Entry.comparingByValue())
             .orElseThrow();
-        if (cropType == null || cropType.isBlank()
-                || cropPredictions.isEmpty()) {
-            return imageNotMatchedResponse(lang, cropType, overallTop.getValue());
-        }
+        // A crop selection is helpful context, but it must not turn a valid model
+        // prediction into a hard failure when label naming differs across datasets.
+        List<Map.Entry<String, Double>> usablePredictions = cropPredictions.isEmpty()
+                ? predictions.entrySet().stream()
+                    .sorted(Map.Entry.<String, Double>comparingByValue().reversed())
+                    .toList()
+                : cropPredictions;
 
         // The farmer's crop selection is useful evidence. Prefer its best matching
         // class when the general model is uncertain instead of forcing an unrelated
         // crop label onto a valid leaf image.
         // ── Top-K candidates ────────────────────────────────────────
-        List<Map.Entry<String, Double>> sorted = cropPredictions.stream()
+        List<Map.Entry<String, Double>> sorted = usablePredictions.stream()
                 .sorted(Map.Entry.<String, Double>comparingByValue().reversed())
                 .limit(TOP_K)
                 .toList();
 
         Map.Entry<String, Double> top = sorted.get(0);
-        double cropProbabilityTotal = cropPredictions.stream()
+        double cropProbabilityTotal = usablePredictions.stream()
             .mapToDouble(entry -> entry.getValue())
             .sum();
         double confidence = cropProbabilityTotal > 0

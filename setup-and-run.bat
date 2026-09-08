@@ -4,7 +4,7 @@ REM This script handles all dependencies and starts the application
 
 setlocal enabledelayedexpansion
 cd /d "%~dp0"
-if not defined APP_URL set "APP_URL=http://localhost:8080"
+if not defined APP_URL set "APP_URL=http://localhost:8081"
 
 REM Color output
 for /f %%A in ('copy /Z "%~f0" nul') do set "BS=%%A"
@@ -18,7 +18,7 @@ echo.
 REM ===== JAVA CHECK =====
 echo [1/4] Checking Java installation...
 REM Prefer the configured Java 25 LTS installation so the launcher matches pom.xml.
-for /d %%D in ("%LOCALAPPDATA%\Programs\Eclipse Adoptium\jdk-25*" "%LOCALAPPDATA%\jdks\jdk-25*" "C:\Program Files\Java\jdk-25*") do (
+for /d %%D in ("%LOCALAPPDATA%\Programs\Eclipse Adoptium\jdk-26*" "%LOCALAPPDATA%\Programs\Eclipse Adoptium\jdk-25*" "%LOCALAPPDATA%\jdks\jdk-26*" "%LOCALAPPDATA%\jdks\jdk-25*" "C:\Program Files\Java\jdk-26*" "C:\Program Files\Java\jdk-25*") do (
   if exist "%%~D\bin\java.exe" (
     set "JAVA_HOME=%%~D"
     set "PATH=%%~D\bin;!PATH!"
@@ -125,7 +125,7 @@ echo.
 
 REM Navigate to frontend and build
 REM The current React build is served by this backend. Keep build and runtime
-REM pointed at the same project so localhost:8080 cannot serve the old UI.
+REM pointed at the same project so localhost:8081 cannot serve the old UI.
 set "BACKEND_DIR=%~dp0frontend\desktop-tutorial"
 set "FRONTEND_DIR=%BACKEND_DIR%\frontend"
 if not exist "%FRONTEND_DIR%\package.json" (
@@ -168,17 +168,18 @@ REM Start backend
 echo.
 echo Starting Spring Boot backend...
 set "HEALTH_URL=%APP_URL%/api/v1/health"
+set "SERVER_PORT=8081"
 set "SERVER_READY=0"
 REM Stop any older FasalSathi instance using the same port.
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$connection = Get-NetTCPConnection -LocalPort 8080 -State Listen -ErrorAction SilentlyContinue; if ($connection) { Stop-Process -Id $connection.OwningProcess -Force -ErrorAction SilentlyContinue }" >nul 2>&1
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$connection = Get-NetTCPConnection -LocalPort %SERVER_PORT% -State Listen -ErrorAction SilentlyContinue; if ($connection) { Stop-Process -Id $connection.OwningProcess -Force -ErrorAction SilentlyContinue }" >nul 2>&1
 for /l %%N in (1,1,10) do (
-  powershell -NoProfile -ExecutionPolicy Bypass -Command "if (Get-NetTCPConnection -LocalPort 8080 -State Listen -ErrorAction SilentlyContinue) { exit 1 } else { exit 0 }" >nul 2>&1
+  powershell -NoProfile -ExecutionPolicy Bypass -Command "if (Get-NetTCPConnection -LocalPort %SERVER_PORT% -State Listen -ErrorAction SilentlyContinue) { exit 1 } else { exit 0 }" >nul 2>&1
   if not errorlevel 1 goto port_ready
   timeout /t 1 /nobreak >nul
 )
 :port_ready
 pushd "%BACKEND_DIR%"
-start "FasalSathi Backend" "%ComSpec%" /k "title FasalSathi Backend Server && mvn spring-boot:run"
+start "FasalSathi Backend" "%ComSpec%" /k "title FasalSathi Backend Server && mvn spring-boot:run -Dspring-boot.run.arguments=--server.port=%SERVER_PORT%"
 popd
 
 REM Wait for backend to start
