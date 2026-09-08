@@ -36,7 +36,7 @@ if errorlevel 1 (
  :java_ready
 for /f "tokens=3" %%i in ('java -version 2^>^&1 ^| find "version"') do (
   set JAVA_VERSION=%%~i
-  echo ✓ Java found: !JAVA_VERSION!
+  echo [OK] Java found: !JAVA_VERSION!
 )
 
 REM ===== MAVEN CHECK & INSTALL =====
@@ -59,7 +59,7 @@ if errorlevel 1 (
       set "MAVEN_HOME=%%~D"
       set "PATH=%%~D\bin;!PATH!"
       set MAVEN_FOUND=1
-      echo ✓ Maven found at: %%~D
+      echo [OK] Maven found at: %%~D
       goto maven_ready
     )
   )
@@ -85,7 +85,7 @@ if errorlevel 1 (
   pause
   exit /b 1
 )
-echo ✓ Maven is ready
+echo [OK] Maven is ready
 
 REM ===== NODE.JS CHECK =====
 echo.
@@ -100,7 +100,7 @@ if errorlevel 1 (
 )
 for /f "tokens=1" %%i in ('node --version') do (
   set NODE_VERSION=%%i
-  echo ✓ Node.js found: !NODE_VERSION!
+  echo [OK] Node.js found: !NODE_VERSION!
 )
 
 REM ===== NPM CHECK =====
@@ -112,7 +112,7 @@ if errorlevel 1 (
   pause
   exit /b 1
 )
-echo ✓ npm is ready
+echo [OK] npm is ready
 
 REM ===== PROJECT SETUP =====
 echo.
@@ -154,7 +154,7 @@ if errorlevel 1 (
   exit /b 1
 )
 popd
-echo ✓ Frontend built successfully
+echo [OK] Frontend built successfully
 
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$index = Get-Content -Raw '%FRONTEND_DIR%\dist\index.html'; if ($index -notmatch 'index-[^ ]+\.js' -or $index -notmatch 'index-[^ ]+\.css') { exit 1 }" >nul 2>&1
 if errorlevel 1 (
@@ -162,7 +162,7 @@ if errorlevel 1 (
   pause
   exit /b 1
 )
-echo ✓ Published build verified
+echo [OK] Published build verified
 
 REM Start backend
 echo.
@@ -203,7 +203,7 @@ if "%SERVER_READY%"=="0" (
 )
 
 echo.
-echo ✓ FasalSathi backend is ready.
+echo [OK] FasalSathi backend is ready.
 echo.
 echo Close the FasalSathi backend window to stop the server.
 exit /b 0
@@ -234,5 +234,5 @@ if errorlevel 1 (
 set "PATH=%MAVEN_INSTALL_PATH%\bin;!PATH!"
 set "MAVEN_HOME=%MAVEN_INSTALL_PATH%"
 
-echo ✓ Maven installed at: %MAVEN_INSTALL_PATH%
+echo [OK] Maven installed at: %MAVEN_INSTALL_PATH%
 exit /b 0

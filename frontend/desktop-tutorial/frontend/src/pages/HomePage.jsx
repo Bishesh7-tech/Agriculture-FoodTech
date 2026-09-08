@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getDistricts, getMandiPrices, getWeather } from '../api/cropApi';
 import { useLanguage } from '../context/LanguageContext';
+import { localizedCrop, localizedDistrict } from '../utils/localizedLabels';
 
 const crops = ['Rice', 'Potato', 'Jute', 'Mustard', 'Tea', 'Tomato', 'Brinjal', 'Chilli', 'Mango', 'Wheat', 'Maize'];
 const typicalPrices = { Rice: 2400, Potato: 1800, Jute: 5200, Mustard: 6200, Tea: 22000, Tomato: 2400, Brinjal: 2600, Chilli: 7000, Mango: 6500, Wheat: 2500, Maize: 2200 };
@@ -176,7 +177,7 @@ export default function HomePage() {
               <option value="">{text.chooseDistrict}</option>
               {districts.map((item) => (
                 <option key={item.name} value={item.name}>
-                  {item.name}
+                  {localizedDistrict(item.name, language)}
                 </option>
               ))}
             </select>
@@ -224,7 +225,7 @@ export default function HomePage() {
         {/* Tab Content */}
         <div className="mt-8">
           {tab === 'weather' && <Weather weather={weather} district={district} loading={loading} text={text} />}
-          {tab === 'market' && <Market crop={crop} setCrop={setCrop} market={market} week={week} district={district} loading={loading} text={text} />}
+          {tab === 'market' && <Market crop={crop} setCrop={setCrop} market={market} week={week} district={district} loading={loading} text={text} language={language} />}
           {tab === 'shops' && <Shops district={district} text={text} />}
         </div>
       </div>
@@ -364,7 +365,7 @@ export function ProfitCalculator({ inputs, onChange, market, language }) {
           <ProfitInput label={copy.land} value={inputs.land} onChange={(value) => onChange('land', value)} />
           <label className="block text-sm font-semibold text-slate-200">{copy.crop}
             <select value={inputs.crop} onChange={(event) => onChange('crop', event.target.value)} className="mt-2 w-full rounded-lg border border-emerald-800 bg-slate-900 px-3 py-3 text-slate-100 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/30">
-              {crops.map((cropName) => <option key={cropName}>{cropName}</option>)}
+              {crops.map((cropName) => <option key={cropName} value={cropName}>{localizedCrop(cropName, language)}</option>)}
             </select>
           </label>
           <ProfitInput label={copy.seed} value={inputs.seed} onChange={(value) => onChange('seed', value)} />
@@ -402,7 +403,7 @@ function Weather({ weather, district, loading, text }) {
   return <div className="mt-6"><div className="rounded-2xl bg-gradient-to-br from-sky-50 to-emerald-50 p-5 sm:p-7"><div className="flex flex-col justify-between gap-4 sm:flex-row"><div><p className="text-sm font-semibold text-sky-700">{text.conditions(district)}</p><h3 className="mt-1 text-3xl font-bold text-slate-900">{localCondition(weather.condition, text)}</h3><p className="mt-2 max-w-xl text-sm leading-6 text-slate-600">{text.weatherUpdate}</p></div><div className="rounded-2xl bg-white px-5 py-3 text-center shadow-sm"><span className="block text-4xl font-bold text-slate-900">{weather.temperatureC}°</span><span className="text-xs font-semibold text-slate-500">{text.celsius}</span></div></div><div className="mt-6 grid grid-cols-3 gap-3"><Metric label={text.humidity} value={`${weather.humidityPercent}%`} /><Metric label={text.rain} value={`${weather.rainMm} mm`} /><Metric label={text.wind} value={`${weather.windKph} km/h`} /></div></div><div className="mt-5"><h4 className="font-bold text-slate-900">{text.next}</h4><div className="mt-3 grid gap-3 sm:grid-cols-3">{(weather.forecast || []).map((day) => <div key={day.date} className="rounded-xl border border-slate-200 p-4"><p className="text-sm font-bold text-slate-800">{dateLabel(day.date)}</p><p className="mt-3 text-2xl font-bold text-emerald-800">{day.highC}°</p><p className="text-xs text-slate-500">{text.low} {day.lowC}° · {text.rain} {day.rainMm} mm</p></div>)}</div></div><p className="mt-4 text-xs text-slate-500">{text.weatherSource}</p></div>;
 }
 
-function Market({ crop, setCrop, market, week, district, loading, text }) {
+function Market({ crop, setCrop, market, week, district, loading, text, language }) {
   const max = Math.max(...week.map((item) => item.price), 1);
   if (!district) return <div className="py-10 text-center text-sm text-slate-500">{text.chooseDistrict}</div>;
   return <div className="mt-6"><div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><h3 className="text-xl font-bold text-slate-900">{text.marketTitle(district)}</h3><p className="mt-1 text-sm text-slate-500">{text.marketCopy}</p></div><label className="text-sm font-semibold text-slate-700">{text.crop}<select value={crop} onChange={(event) => setCrop(event.target.value)} className="ml-3 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-emerald-600">{crops.map((name) => <option key={name}>{name}</option>)}</select></label></div>{!market && loading ? <div className="py-10 text-sm text-slate-500">{text.marketLoading}</div> : <><div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-5"><div className="flex items-center justify-between"><div><p className="font-bold text-slate-900">{text.trend}</p><p className="text-xs text-slate-500">{text.trendCopy(crop)}</p></div><span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800">{text.estimate}</span></div><div className="mt-5 flex h-32 items-end gap-2 sm:gap-4">{week.map((item) => <div key={item.date.toISOString()} className="flex flex-1 flex-col items-center justify-end gap-2"><span className="text-[10px] font-semibold text-slate-600">₹{item.price.toLocaleString('en-IN')}</span><div className="w-full max-w-10 rounded-t-md bg-emerald-600" style={{ height: `${Math.max(18, item.price / max * 92)}px` }} /><span className="text-[10px] text-slate-500">{dateLabel(item.date).split(' ')[0]}</span></div>)}</div></div><div className="mt-5 overflow-x-auto"><table className="w-full min-w-[620px] text-left text-sm"><thead className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500"><tr><th className="px-3 py-3">{text.marketName}</th><th className="px-3 py-3">{text.variety}</th><th className="px-3 py-3">{text.range}</th><th className="px-3 py-3">{text.modal}</th><th className="px-3 py-3">{text.date}</th></tr></thead><tbody>{(market?.records || []).map((record, index) => <tr key={`${record.market}-${index}`} className="border-b border-slate-100"><td className="px-3 py-3 font-semibold text-slate-800">{record.market}</td><td className="px-3 py-3 text-slate-600">{record.variety || text.variety}</td><td className="px-3 py-3 text-slate-600">₹{number(record.minPrice).toLocaleString('en-IN')}–₹{number(record.maxPrice).toLocaleString('en-IN')}</td><td className="px-3 py-3 font-bold text-emerald-800">₹{number(record.modalPrice).toLocaleString('en-IN')}</td><td className="px-3 py-3 text-slate-600">{record.date || text.today}</td></tr>)}</tbody></table></div><p className="mt-4 text-xs text-slate-500">{text.priceNote}</p></>}</div>;

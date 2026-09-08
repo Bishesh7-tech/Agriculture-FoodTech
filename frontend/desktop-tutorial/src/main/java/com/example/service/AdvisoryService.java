@@ -52,9 +52,6 @@ public class AdvisoryService {
             .filter(entry -> matchesCrop(entry.getKey(), cropType))
             .sorted(Map.Entry.<String, Double>comparingByValue().reversed())
             .toList();
-        Map.Entry<String, Double> overallTop = predictions.entrySet().stream()
-            .max(Map.Entry.comparingByValue())
-            .orElseThrow();
         // A crop selection is helpful context, but it must not turn a valid model
         // prediction into a hard failure when label naming differs across datasets.
         List<Map.Entry<String, Double>> usablePredictions = cropPredictions.isEmpty()
@@ -165,39 +162,6 @@ public class AdvisoryService {
             if (normalizedCrop.equals("maize")) normalizedCrop = "corn";
             return normalizedLabel.contains(normalizedCrop)
                 || (normalizedCrop.equals("chilli") && normalizedLabel.contains("pepper"));
-            }
-
-            private PredictionResponseDTO imageNotMatchedResponse(String language, String cropType, double confidence) {
-            String crop = cropType == null || cropType.isBlank() ? "selected crop" : cropType;
-            String explanation = "This image could not be matched confidently to " + crop
-                + ". No disease treatment has been suggested. Take a close, well-lit photo of one leaf from the selected crop, then try again.";
-            String escalation = "Please retake the image with the leaf filling most of the frame. If the result remains uncertain, consult a KVK or agriculture expert before treating the crop.";
-            return new PredictionResponseDTO(
-                "IMAGE_NOT_MATCHED",
-                "Image not matched",
-                confidence,
-                List.of(),
-                explanation,
-                "",
-                List.of("Retake a clear photo of one leaf from the selected crop.", "Use natural light and keep the affected area in focus.", "Do not apply chemical treatment based on this result."),
-                List.of(),
-                null,
-                null,
-                true,
-                escalation,
-                new TranslatedAdvisoryDTO(
-                    language,
-                    translationService.translateDiseaseName("Image not matched", language),
-                    translationService.translateNarrative(explanation, language),
-                    "",
-                    translationService.translateActions(List.of("Retake a clear photo of one leaf from the selected crop.", "Use natural light and keep the affected area in focus.", "Do not apply chemical treatment based on this result."), language),
-                    List.of(),
-                    translationService.translateNarrative(escalation, language),
-                    null,
-                    null,
-                    null,
-                    List.of()),
-                null);
             }
 
     // ── Private helpers ─────────────────────────────────────────────────

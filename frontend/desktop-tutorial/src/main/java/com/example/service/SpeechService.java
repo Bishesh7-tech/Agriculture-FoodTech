@@ -38,7 +38,7 @@ public class SpeechService {
         }
 
         byte[] pcm = toPcm(audio.getBytes());
-        if (pcm.length == 0) {
+        if (pcm.length < 320) {
             throw new IllegalArgumentException("The uploaded audio could not be decoded.");
         }
 
@@ -78,7 +78,7 @@ public class SpeechService {
                 return out.toByteArray();
             }
         } catch (Exception ex) {
-            return recordedBytes;
+            throw new IOException("The uploaded audio must be a browser-recorded WAV file.", ex);
         }
     }
 

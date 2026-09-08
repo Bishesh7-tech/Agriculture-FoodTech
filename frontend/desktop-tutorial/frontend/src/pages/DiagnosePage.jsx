@@ -10,6 +10,7 @@ import ActionCard from '../components/ActionCard';
 import SafetyWarnings from '../components/SafetyWarnings';
 import EscalationAlert from '../components/EscalationAlert';
 import WeatherCard from '../components/WeatherCard';
+import { localizedDistrict } from '../utils/localizedLabels';
 
 export default function DiagnosePage() {
   const { language, t } = useLanguage();
@@ -487,14 +488,18 @@ export default function DiagnosePage() {
         }
 
         const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        const buffer = await audioContext.decodeAudioData(reader.result.slice(0));
-        const channel = buffer.getChannelData(0);
-        const samples = new Float32Array(channel.length);
-        for (let i = 0; i < channel.length; i += 1) {
-          samples[i] = channel[i];
+        try {
+          const buffer = await audioContext.decodeAudioData(reader.result.slice(0));
+          const channel = buffer.getChannelData(0);
+          const samples = new Float32Array(channel.length);
+          for (let i = 0; i < channel.length; i += 1) {
+            samples[i] = channel[i];
+          }
+          const wavBuffer = encodeWav(samples, buffer.sampleRate);
+          resolve(new Blob([wavBuffer], { type: 'audio/wav' }));
+        } finally {
+          await audioContext.close();
         }
-        const wavBuffer = encodeWav(samples, buffer.sampleRate);
-        resolve(new Blob([wavBuffer], { type: 'audio/wav' }));
       } catch (error) {
         reject(error);
       }
@@ -506,7 +511,9 @@ export default function DiagnosePage() {
 
   const startVoiceCapture = async () => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (SpeechRecognition) {
+    // Prefer local Vosk when browser recording is available; browser speech
+    // recognition is not consistently available and may silently use another service.
+    if (SpeechRecognition && !navigator.mediaDevices?.getUserMedia) {
       const recognition = new SpeechRecognition();
       recognition.lang = language === 'bn' ? 'bn-IN' : language === 'hi' ? 'hi-IN' : 'en-IN';
       recognition.interimResults = false;
@@ -552,26 +559,34 @@ export default function DiagnosePage() {
         },
       });
 
-      const mimeType = [
-        'audio/webm;codecs=opus',
-        'audio/webm',
-        'audio/mp4',
-        'audio/ogg;codecs=opus',
-      ].find((type) => MediaRecorder.isTypeSupported(type)) || '';
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const source = audioContext.createMediaStreamSource(stream);
+      const processor = audioContext.createScriptProcessor(4096, 1, 1);
+      const silentOutput = audioContext.createGain();
+      silentOutput.gain.value = 0;
+      const samples = [];
+      let captureFinished = false;
 
-      const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
-      const chunks = [];
-
-      recorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          chunks.push(event.data);
-        }
+      processor.onaudioprocess = (event) => {
+        samples.push(new Float32Array(event.inputBuffer.getChannelData(0)));
       };
+      source.connect(processor);
+      processor.connect(silentOutput);
+      silentOutput.connect(audioContext.destination);
 
-      recorder.onstop = async () => {
+      const finishCapture = async () => {
+        if (captureFinished) return;
+        captureFinished = true;
         try {
           setSpeechStatus(labelText.transcribing);
-          const wavBlob = await audioChunksToWavBlob(chunks, recorder.mimeType || 'audio/webm');
+          const sampleCount = samples.reduce((total, chunk) => total + chunk.length, 0);
+          const mergedSamples = new Float32Array(sampleCount);
+          let offset = 0;
+          samples.forEach((chunk) => {
+            mergedSamples.set(chunk, offset);
+            offset += chunk.length;
+          });
+          const wavBlob = new Blob([encodeWav(mergedSamples, audioContext.sampleRate)], { type: 'audio/wav' });
           const res = await transcribeAudio(wavBlob, language);
           const transcript = res.data?.transcript || '';
           if (transcript) {
@@ -586,20 +601,21 @@ export default function DiagnosePage() {
           setError('Voice input could not be converted to text right now. Please type the observation manually and continue the diagnosis.');
           setSpeechStatus(labelText.failed);
         } finally {
+          processor.disconnect();
+          source.disconnect();
+          silentOutput.disconnect();
           stream.getTracks().forEach((track) => track.stop());
+          await audioContext.close();
           setIsRecording(false);
         }
       };
 
-      recorder.start();
       setIsRecording(true);
       setSpeechStatus(labelText.listening);
       setError(null);
 
       setTimeout(() => {
-        if (recorder.state === 'recording') {
-          recorder.stop();
-        }
+        finishCapture();
       }, 8000);
     } catch (captureError) {
       console.error('Microphone error:', captureError);
@@ -771,7 +787,7 @@ export default function DiagnosePage() {
                 >
                   <option value="">{language === 'bn' ? 'জেলা নির্বাচন করুন' : language === 'hi' ? 'जिला चुनें' : 'Select District'}</option>
                   {districts.map(d => (
-                    <option key={d.name} value={d.name}>{d.name}</option>
+                    <option key={d.name} value={d.name}>{localizedDistrict(d.name, language)}</option>
                   ))}
                 </select>
               </div>

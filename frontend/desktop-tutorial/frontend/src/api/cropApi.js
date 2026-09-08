@@ -21,6 +21,9 @@ export function diagnose(image, metadata = {}) {
 }
 
 export function transcribeAudio(audioBlob, language = 'en') {
+  if (!audioBlob || audioBlob.size === 0) {
+    return Promise.reject(new Error('No audio was captured.'));
+  }
   const formData = new FormData();
   formData.append('audio', audioBlob, 'voice.wav');
   formData.append('language', language);
